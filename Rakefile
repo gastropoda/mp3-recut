@@ -14,6 +14,24 @@ def label_file_fragment_names(path)
   contents.map { |row| row[2] }
 end
 
+def multipart_chapters
+  fragment_names
+    .values
+    .flatten
+    .select { |base| base[/\d[a-z]$/] }
+    .group_by { |base| base.sub(/.$/, "") }
+end
+
+multipart_chapters.each do |chapter, parts|
+  chapter_mp3 = "#{chapter}.mp3"
+  parts_mp3 = parts.sort.map { |part| "#{part}.mp3" }
+  file chapter_mp3 => parts_mp3 do
+    quoted_parts = parts_mp3.map { |path| %Q["#{path}"] }.join(" ")
+    sh %Q[mp3wrap "#{chapter_mp3}" #{quoted_parts}]
+  end
+  task :default => chapter_mp3
+end
+
 fragment_names.each do |labels_path, fragments|
   mp3 = labels_path.sub(".txt", ".mp3")
   fragments.each do |fragment|
@@ -21,6 +39,6 @@ fragment_names.each do |labels_path, fragments|
     file fragment_mp3 => [labels_path, mp3] do
       sh %Q[mp3splt "#{mp3}" -A "#{labels_path}"]
     end
-    task :default => fragment_mp3
+    task :default => fragment_mp3 unless fragment[/\d[a-z]$/]
   end
 end
